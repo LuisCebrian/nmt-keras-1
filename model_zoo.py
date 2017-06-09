@@ -49,7 +49,7 @@ class TranslationModel(Model_Wrapper):
         :param clear_dirs: Clean model directories or not.
 
         """
-        super(self.__class__, self).__init__(type=model_type, model_name=model_name,
+        super(TranslationModel, self).__init__(type=model_type, model_name=model_name,
                                              silence=verbose == 0, models_path=store_path, inheritance=True)
 
         self.__toprint = ['_model_type', 'name', 'model_path', 'verbose']
@@ -346,11 +346,17 @@ class TranslationModel(Model_Wrapper):
                 initial_memory = Regularize(initial_memory, params, name='initial_memory')
                 input_attentional_decoder.append(initial_memory)
         else:
+            # Initialize to zeros vector
             input_attentional_decoder = [state_below, annotations]
-            initial_state = None
-            initial_memory = None
+            initial_state = ZeroesLayer(params['DECODER_HIDDEN_SIZE'])(ctx_mean)
+            input_attentional_decoder.append(initial_state)
+            if params['RNN_TYPE'] == 'LSTM':
+                input_attentional_decoder.append(initial_state)
+
+
         # 3.3. Attentional decoder
         sharedAttRNNCond = eval('Att' + params['RNN_TYPE'] + 'Cond')(params['DECODER_HIDDEN_SIZE'],
+                                                                     att_dim=params.get('ATTENTION_SIZE', 0),
                                                                      W_regularizer=l2(params['RECURRENT_WEIGHT_DECAY']),
                                                                      U_regularizer=l2(params['RECURRENT_WEIGHT_DECAY']),
                                                                      V_regularizer=l2(params['RECURRENT_WEIGHT_DECAY']),

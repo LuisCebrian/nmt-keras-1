@@ -1,9 +1,8 @@
 import argparse
 import logging
-
-from config import load_parameters
+import ast
 from data_engine.prepare_data import update_dataset_from_file
-from keras_wrapper.beam_search_ensemble import BeamSearchEnsemble
+from keras_wrapper.model_ensemble import BeamSearchEnsemble
 from keras_wrapper.cnn_model import loadModel
 from keras_wrapper.dataset import loadDataset
 from keras_wrapper.extra.read_write import pkl2dict, list2file, nbest2file, list2stdout
@@ -26,10 +25,11 @@ def parse_args():
     parser.add_argument("-c", "--config", required=False, help="Config pkl for loading the model configuration. "
                                                                "If not specified, hyperparameters "
                                                                "are read from config.py")
-    parser.add_argument("--n-best", action="store_true", default=False, help="Write n-best list (n = beam size)")
-    parser.add_argument("--models", nargs='+', required=True, help="path to the models")
+    parser.add_argument("-n", "--n-best", action="store_true", default=False, help="Write n-best list (n = beam size)")
+    parser.add_argument("-m", "--models", nargs="+", required=True, help="Path to the models")
+    parser.add_argument("-ch", "--changes", nargs="*", help="Changes to the config. Following the syntax Key=Value",
+                        default="")
     return parser.parse_args()
-
 
 if __name__ == "__main__":
 
@@ -39,11 +39,25 @@ if __name__ == "__main__":
     models = [loadModel(m, -1, full_path=True) for m in args.models]
     if args.config is None:
         logging.info("Reading parameters from config.py")
+        from config import load_parameters
         params = load_parameters()
     else:
         logging.info("Loading parameters from %s" % str(args.config))
         params = pkl2dict(args.config)
-
+    try:
+        for arg in args.changes:
+            try:
+                k, v = arg.split('=')
+            except ValueError:
+                print 'Overwritten arguments must have the form key=Value. \n Currently are: %s' % str(args.changes)
+                exit(1)
+            try:
+                params[k] = ast.literal_eval(v)
+            except ValueError:
+                params[k] = v
+    except ValueError:
+        print 'Error processing arguments: (', k, ",", v, ")"
+        exit(2)
     dataset = loadDataset(args.dataset)
     dataset = update_dataset_from_file(dataset, args.text, params, splits=args.splits, remove_outputs=True)
 
@@ -65,6 +79,7 @@ if __name__ == "__main__":
     params_prediction['model_outputs'] = params['OUTPUTS_IDS_MODEL']
     params_prediction['dataset_inputs'] = params['INPUTS_IDS_DATASET']
     params_prediction['dataset_outputs'] = params['OUTPUTS_IDS_DATASET']
+    params_prediction['search_pruning'] = params.get('SEARCH_PRUNING', False)
     params_prediction['normalize_probs'] = params.get('NORMALIZE_SAMPLING', False)
     params_prediction['alpha_factor'] = params.get('ALPHA_FACTOR', 1.0)
     params_prediction['coverage_penalty'] = params.get('COVERAGE_PENALTY', False)
@@ -72,7 +87,7 @@ if __name__ == "__main__":
     params_prediction['length_norm_factor'] = params.get('LENGTH_NORM_FACTOR', 0.0)
     params_prediction['coverage_norm_factor'] = params.get('COVERAGE_NORM_FACTOR', 0.0)
     params_prediction['pos_unk'] = params.get('POS_UNK', False)
-    params_prediction['heuristic'] = params.get('HEURISTIC', 0)
+    heuristic = params.get('HEURISTIC', 0)
     mapping = None if dataset.mapping == dict() else dataset.mapping
 
     for s in args.splits:
@@ -88,9 +103,8 @@ if __name__ == "__main__":
         if params_prediction['pos_unk']:
             samples = predictions[0]
             alphas = predictions[1]
-            sources = map(lambda x: x.strip(), open(args.text, 'r').read().split('\n'))
+            sources = [x.strip() for x in open(args.text, 'r').read().split('\n')]
             sources = sources[:-1] if len(sources[-1]) == 0 else sources
-            heuristic = params_prediction['heuristic']
         else:
             samples = predictions
             alphas = None
@@ -110,13 +124,6 @@ if __name__ == "__main__":
 
         if args.n_best:
             n_best_predictions = []
-            if params_prediction['pos_unk']:
-                sources = map(lambda x: x.strip().split(), open(args.text, 'r').read().split('\n'))
-                heuristic = params_prediction['heuristic']
-            else:
-                alphas = None
-                heuristic = None
-                sources = None
             i = 0
             for i, (n_best_preds, n_best_scores, n_best_alphas) in enumerate(n_best):
                 n_best_sample_score = []

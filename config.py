@@ -6,7 +6,8 @@ def load_parameters():
     """
 
     # Input data params
-    DATASET_NAME = 'EuTrans'                        # Task name
+    TASK_NAME = 'EuTrans'                           # Task name
+    DATASET_NAME = TASK_NAME                        # Dataset name
     SRC_LAN = 'es'                                  # Language of the source text
     TRG_LAN = 'en'                                  # Language of the target text
     DATA_ROOT_PATH = 'examples/%s/' % DATASET_NAME  # Path where data is stored
@@ -36,6 +37,8 @@ def load_parameters():
     BEAM_SEARCH = True                            # Switches on-off the beam search procedure
     BEAM_SIZE = 6                                 # Beam size (in case of BEAM_SEARCH == True)
     OPTIMIZED_SEARCH = True                       # Compute annotations only a single time per sample
+    SEARCH_PRUNING = False                        # Apply pruning strategies to the beam search method.
+                                                  # It will likely increase decoding speed, but decrease quality.
 
     # Apply length and coverage decoding normalizations.
     # See Section 7 from Wu et al. (2016) (https://arxiv.org/abs/1609.08144)
@@ -132,28 +135,29 @@ def load_parameters():
     RNN_TYPE = 'LSTM'                             # RNN unit type ('LSTM' and 'GRU' supported)
     INIT_FUNCTION = 'glorot_uniform'              # Initialization function for matrices (see keras/initializations.py)
 
-    SOURCE_TEXT_EMBEDDING_SIZE = 128              # Source language word embedding size.
+    SOURCE_TEXT_EMBEDDING_SIZE = 64              # Source language word embedding size.
     SRC_PRETRAINED_VECTORS = None                 # Path to pretrained vectors (e.g.: DATA_ROOT_PATH + '/DATA/word2vec.%s.npy' % SRC_LAN)
                                                   # Set to None if you don't want to use pretrained vectors.
                                                   # When using pretrained word embeddings. this parameter must match with the word embeddings size
     SRC_PRETRAINED_VECTORS_TRAINABLE = True       # Finetune or not the target word embedding vectors.
 
-    TARGET_TEXT_EMBEDDING_SIZE = 128              # Source language word embedding size.
+    TARGET_TEXT_EMBEDDING_SIZE = 64              # Source language word embedding size.
     TRG_PRETRAINED_VECTORS = None                 # Path to pretrained vectors. (e.g. DATA_ROOT_PATH + '/DATA/word2vec.%s.npy' % TRG_LAN)
                                                   # Set to None if you don't want to use pretrained vectors.
                                                   # When using pretrained word embeddings, the size of the pretrained word embeddings must match with the word embeddings size.
     TRG_PRETRAINED_VECTORS_TRAINABLE = True       # Finetune or not the target word embedding vectors.
 
     # Encoder configuration
-    ENCODER_HIDDEN_SIZE = 128                     # For models with RNN encoder
+    ENCODER_HIDDEN_SIZE = 64                     # For models with RNN encoder
     BIDIRECTIONAL_ENCODER = True                  # Use bidirectional encoder
     N_LAYERS_ENCODER = 1                          # Stack this number of encoding layers
     BIDIRECTIONAL_DEEP_ENCODER = True             # Use bidirectional encoder in all encoding layers
 
     # Decoder configuration
-    DECODER_HIDDEN_SIZE = 128                     # For models with RNN decoder
+    DECODER_HIDDEN_SIZE = 64                     # For models with RNN decoder
     N_LAYERS_DECODER = 1                          # Stack this number of decoding layers.
     ADDITIONAL_OUTPUT_MERGE_MODE = 'sum'          # Merge mode for the skip-connections
+    ATTENTION_SIZE = DECODER_HIDDEN_SIZE 
     # Skip connections size
     SKIP_VECTORS_HIDDEN_SIZE = TARGET_TEXT_EMBEDDING_SIZE
 
@@ -192,7 +196,7 @@ def load_parameters():
 
     # Results plot and models storing parameters
     EXTRA_NAME = ''                               # This will be appended to the end of the model name
-    MODEL_NAME = DATASET_NAME + '_' + SRC_LAN + TRG_LAN + '_' + MODEL_TYPE + \
+    MODEL_NAME = TASK_NAME + '_' + SRC_LAN + TRG_LAN + '_' + MODEL_TYPE + \
                  '_src_emb_' + str(SOURCE_TEXT_EMBEDDING_SIZE) + \
                  '_bidir_' + str(BIDIRECTIONAL_ENCODER) + \
                  '_enc_' + RNN_TYPE + '_' + str(ENCODER_HIDDEN_SIZE) + \
@@ -204,7 +208,7 @@ def load_parameters():
     MODEL_NAME += EXTRA_NAME
 
     STORE_PATH = 'trained_models/' + MODEL_NAME + '/'  # Models and evaluation results will be stored here
-    DATASET_STORE_PATH = 'datasets/'                   # Dataset instance will be stored here
+    DATASET_STORE_PATH = STORE_PATH + '/'              # Dataset instance will be stored here
 
     SAMPLING_SAVE_MODE = 'list'                        # 'list' or 'vqa'
     VERBOSE = 1                                        # Verbosity level
